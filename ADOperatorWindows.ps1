@@ -372,10 +372,10 @@ $formADOperatorWindowsControlSurnameTxt.Add_TextChanged({
         SetDisplayName
     })
 
-$formADOperatorWindowsControlRolesCmb.Add_SelectionChanged({
-        $selectedRole = $formADOperatorWindowsControlRolesCmb.SelectedItem
-        if ($RoleConfig.ContainsKey($selectedRole)) {
-            $config = $RoleConfig[$selectedRole]
+$formADOperatorWindowsControlTypeAccCbm.Add_SelectionChanged({
+        $selectedType = $formADOperatorWindowsControlTypeAccCbm.SelectedItem
+        if ($null -ne $selectedType -and $RoleConfig.ContainsKey($selectedType)) {
+            $config = $RoleConfig[$selectedType]
             if ($config.Department) {
                 $formADOperatorWindowsControlDepartmentTxt.Text = $config.Department
             }
