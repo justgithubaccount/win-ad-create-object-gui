@@ -48,7 +48,7 @@
         <TextBox x:Name="SamAccountNameTxt" Grid.Column="3" Grid.Row="0" Margin="5"></TextBox>
 
         <Label Grid.Column="2" Grid.Row="1" Margin="5">Пароль [password]:</Label>
-        <TextBox x:Name="PasswordTxt" Grid.Column="3" Grid.Row="1" Margin="5"></TextBox>
+        <PasswordBox x:Name="PasswordTxt" Grid.Column="3" Grid.Row="1" Margin="5"></PasswordBox>
 
         <Button x:Name="SetLoginNameBtn" Grid.Column="3" Grid.Row="2" Margin="5">Сформировать логин</Button>
 
@@ -74,7 +74,7 @@
 
         <!-- -->
 
-        <Label Grid.Column="2" Grid.Row="4" Margin="5">Страна [co]</Label>
+        <Label Grid.Column="2" Grid.Row="4" Margin="5">Страна [co] (не сохраняется)</Label>
         <TextBox x:Name="CoTxt" Grid.Column="3" Grid.Row="4" Margin="5"></TextBox>
 
         <Label Grid.Column="2" Grid.Row="5" Margin="5">Область [st]</Label>
@@ -91,18 +91,18 @@
         <Label Grid.Column="0" Grid.Row="11" Margin="5">Сайт (не нужен):</Label>
         <ComboBox IsEnabled="False" Grid.Column="1" Grid.Row="11" Margin="5"></ComboBox>
 
-        <Label Grid.Column="0" Grid.Row="12" Margin="5">Ролевая группа:</Label>
+        <Label Grid.Column="0" Grid.Row="12" Margin="5">Ролевая группа (не сохраняется):</Label>
         <ComboBox x:Name="RolesCmb" Grid.Column="1" Grid.Row="12" Margin="5"></ComboBox>
 
         <Label Grid.Column="2" Grid.Row="11" Margin="5">Тип учетной записи:</Label>
         <ComboBox x:Name="TypeAccCbm" Grid.Column="3" Grid.Row="11" Margin="5"></ComboBox>
 
-        <Label Grid.Column="2" Grid.Row="12" Margin="5">Руководитель [manager]:</Label>
+        <Label Grid.Column="2" Grid.Row="12" Margin="5">Руководитель (не сохраняется):</Label>
         <ComboBox x:Name="ManagersCmb" Grid.Column="3" Grid.Row="12" Margin="5"></ComboBox>
 
         <!-- -->
 
-        <Button x:Name="PreCreateBtn" Grid.Column="0" Grid.Row="14" Grid.ColumnSpan="2" Margin="5">Предварителньй просмотр</Button>
+        <Button x:Name="PreCreateBtn" Grid.Column="0" Grid.Row="14" Grid.ColumnSpan="2" Margin="5">Предварительный просмотр</Button>
         <Button x:Name="CreateBtn" Grid.Column="2" Grid.Row="14" Grid.ColumnSpan="2" Margin="5">Создать</Button>
     </Grid>
 </Window>

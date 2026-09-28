@@ -244,18 +244,24 @@ function PopulateComboBox {
     )
 
     $ComboBox.Items.Clear()
-    $items = & $QueryScript
+    try {
+        $items = & $QueryScript
+    }
+    catch {
+        Write-Warning "Не удалось загрузить данные AD: $($_.Exception.Message)"
+        return
+    }
     foreach ($item in $items) {
-        $ComboBox.Items.Add($item.Name)
+        [void]$ComboBox.Items.Add($item.Name)
     }
 }
 
 function LoadComboBoxAGGroup ($adGroup) {
-    PopulateComboBox $formADOperatorWindowsControlManagersCmb { Get-ADGroupMember -Identity $adGroup | Select-Object Name }
+    PopulateComboBox $formADOperatorWindowsControlManagersCmb { Get-ADGroupMember -Identity $adGroup -ErrorAction Stop | Select-Object Name }
 }
 
 function LoadComboBoxOU ($adOU) {
-    PopulateComboBox $formADOperatorWindowsControlRolesCmb { Get-ADGroup -Filter * -SearchBase $adOU | Select-Object Name }
+    PopulateComboBox $formADOperatorWindowsControlRolesCmb { Get-ADGroup -Filter * -SearchBase $adOU -ErrorAction Stop | Select-Object Name }
 }
 
 # Mapping of roles to default field values
@@ -268,24 +274,22 @@ $RoleConfig = @{
 }
 
 function ViewADUser {
-    $testViewBox = @(
-        $formADOperatorWindowsControlSurnameTxt.Text     
-        $formADOperatorWindowsControlGivenNameTxt.Text
-        $formADOperatorWindowsControlDisplayNameTxt.Text
-        $formADOperatorWindowsControlSamAccountNameTxt.Text     
-        $formADOperatorWindowsControlPasswordTxt.Text  
-        $formADOperatorWindowsControlCompanyTxt.Text       
-        $formADOperatorWindowsControlDepartmentTxt.Text    
-        $formADOperatorWindowsControlTitleTxt.Text
-        $formADOperatorWindowsControlMailTxt.Text
-        $formADOperatorWindowsControlTelephoneNumberTxt.Text
-        $formADOperatorWindowsControlDescriptionTxt.Text   
-        $formADOperatorWindowsControlCoTxt.Text
-        $formADOperatorWindowsControlStTxt.Text
-        $formADOperatorWindowsControlLocationTxt.Text
-        $formADOperatorWindowsControlPhysicalDeliveryOfficeNameTxt.Text
-    )
-    $testViewBox | Out-GridView
+    $preview = @(
+        "Имя: $($formADOperatorWindowsControlDisplayNameTxt.Text)"
+        "Логин: $($formADOperatorWindowsControlSamAccountNameTxt.Text)"
+        "Компания: $($formADOperatorWindowsControlCompanyTxt.Text)"
+        "Отдел: $($formADOperatorWindowsControlDepartmentTxt.Text)"
+        "Должность: $($formADOperatorWindowsControlTitleTxt.Text)"
+        "Email: $($formADOperatorWindowsControlMailTxt.Text)"
+        "Телефон: $($formADOperatorWindowsControlTelephoneNumberTxt.Text)"
+        "Описание: $($formADOperatorWindowsControlDescriptionTxt.Text)"
+        "Область: $($formADOperatorWindowsControlStTxt.Text)"
+        "Город: $($formADOperatorWindowsControlLocationTxt.Text)"
+        "Комната: $($formADOperatorWindowsControlPhysicalDeliveryOfficeNameTxt.Text)"
+        ''
+        'Страна, ролевая группа и руководитель пока не сохраняются в AD.'
+    ) -join [Environment]::NewLine
+    [void][System.Windows.MessageBox]::Show($preview, 'Предварительный просмотр')
 }
 
 function SetDisplayName {
@@ -299,6 +303,10 @@ function SetDisplayName {
 function SetLoginName {
     $firstName = $formADOperatorWindowsControlGivenNameTxt.Text.Trim()
     $lastName = $formADOperatorWindowsControlSurnameTxt.Text.Trim()
+
+    if ([string]::IsNullOrWhiteSpace($firstName) -or [string]::IsNullOrWhiteSpace($lastName)) {
+        return ''
+    }
 
     # Получим первую букву имени
     $firstLetterName = $firstName.SubString(0, 1)
@@ -319,14 +327,13 @@ function Convert2Latin($inString) {
     
     # Перебираем слово по буквам
     for ($i = 0; $i -lt $inString.Length; $i++) { 
-        $t = -1
-    
-        # Выясняем позицию заменямой буквы в массиве
-        Do { $t = $t + 1 }
-        Until (($inString[$i] -ceq $char_ru[$t]) -or ($t -eq 100))
-     
-        # Дополняем строку конвертированного одновременно производя замену русской буквы на английскую
-        $TempString = $TempString + ($inString[$i] -creplace $char_ru[$t], $char_en[$t])
+        $t = [array]::IndexOf($char_ru, [string]$inString[$i])
+        if ($t -ge 0) {
+            $TempString += $char_en[$t]
+        }
+        else {
+            $TempString += $inString[$i]
+        }
     }
     
     return $TempString
@@ -334,17 +341,53 @@ function Convert2Latin($inString) {
 
 # Функция создания пользователя
 function CreateADUser ($upnSuffix, $pathOU) {
-    $upn = $formADOperatorWindowsControlSamAccountNameTxt.Text + $upnSuffix
-    
-    New-ADUser -PasswordNeverExpires $True -CannotChangePassword $True `
-        -Name $formADOperatorWindowsControlDisplayNameTxt.Text `
-        -DisplayName $formADOperatorWindowsControlDisplayNameTxt.Text `
-        -GivenName $formADOperatorWindowsControlGivenNameTxt.Text `
-        -Surname $formADOperatorWindowsControlSurnameTxt.Text `
-        -UserPrincipalName $upn `
-        -SamAccountName $formADOperatorWindowsControlSamAccountNameTxt.Text `
-        -Path $pathOU `
-        -AccountPassword (ConvertTo-SecureString $formADOperatorWindowsControlPasswordTxt.Text -AsPlainText -Force) -Enabled $True
+    $accountName = $formADOperatorWindowsControlSamAccountNameTxt.Text.Trim()
+    $displayName = $formADOperatorWindowsControlDisplayNameTxt.Text.Trim()
+    $givenName = $formADOperatorWindowsControlGivenNameTxt.Text.Trim()
+    $surname = $formADOperatorWindowsControlSurnameTxt.Text.Trim()
+    if ([string]::IsNullOrWhiteSpace($accountName) -or [string]::IsNullOrWhiteSpace($givenName) -or
+        [string]::IsNullOrWhiteSpace($surname) -or $formADOperatorWindowsControlPasswordTxt.SecurePassword.Length -eq 0) {
+        [void][System.Windows.MessageBox]::Show('Заполните имя, фамилию, логин и пароль.', 'Недостаточно данных')
+        return
+    }
+    $upn = $accountName + $upnSuffix
+
+    $user = @{
+        Name              = $displayName
+        DisplayName       = $displayName
+        GivenName         = $givenName
+        Surname           = $surname
+        UserPrincipalName = $upn
+        SamAccountName    = $accountName
+        Path              = $pathOU
+        AccountPassword   = $formADOperatorWindowsControlPasswordTxt.SecurePassword
+        Enabled           = $true
+        ErrorAction       = 'Stop'
+    }
+    $optionalFields = @{
+        Company      = $formADOperatorWindowsControlCompanyTxt.Text
+        Department   = $formADOperatorWindowsControlDepartmentTxt.Text
+        Title        = $formADOperatorWindowsControlTitleTxt.Text
+        EmailAddress = $formADOperatorWindowsControlMailTxt.Text
+        OfficePhone  = $formADOperatorWindowsControlTelephoneNumberTxt.Text
+        Description  = $formADOperatorWindowsControlDescriptionTxt.Text
+        State        = $formADOperatorWindowsControlStTxt.Text
+        City         = $formADOperatorWindowsControlLocationTxt.Text
+        Office       = $formADOperatorWindowsControlPhysicalDeliveryOfficeNameTxt.Text
+    }
+    foreach ($field in $optionalFields.Keys) {
+        if (-not [string]::IsNullOrWhiteSpace($optionalFields[$field])) {
+            $user[$field] = $optionalFields[$field].Trim()
+        }
+    }
+
+    try {
+        New-ADUser @user
+        [void][System.Windows.MessageBox]::Show("Пользователь $accountName создан.", 'Готово')
+    }
+    catch {
+        [void][System.Windows.MessageBox]::Show($_.Exception.Message, 'Ошибка создания пользователя')
+    }
 }
 
 ####################
@@ -400,20 +443,6 @@ $formADOperatorWindows.Add_ContentRendered({
         $formADOperatorWindowsControlTypeAccCbm.Items.Add("Сотрудник")
         $formADOperatorWindowsControlTypeAccCbm.Items.Add("Аудитор")
 
-        # Тестовое заполнение полей (для быстро создания)
-        $formADOperatorWindowsControlSurnameTxt.Text = 'Матрешкин'       
-        $formADOperatorWindowsControlGivenNameTxt.Text = 'Емеля'       
-        $formADOperatorWindowsControlPasswordTxt.Text = 'Qq123456'      
-        $formADOperatorWindowsControlCompanyTxt.Text = 'Русские сказки'        
-        $formADOperatorWindowsControlDepartmentTxt.Text = 'Печной отдел'     
-        $formADOperatorWindowsControlTitleTxt.Text = 'Филон' 
-        $formADOperatorWindowsControlMailTxt.Text = 'username@domain.ru' 
-        $formADOperatorWindowsControlTelephoneNumberTxt.Text = '911' 
-        $formADOperatorWindowsControlDescriptionTxt.Text = 'Не беспокоить'     
-        $formADOperatorWindowsControlCoTxt.Text = 'Тридевятое царство'
-        $formADOperatorWindowsControlStTxt.Text = 'Ничегонеделькино'
-        $formADOperatorWindowsControlLocationTxt.Text = 'Печь'  
-        $formADOperatorWindowsControlPhysicalDeliveryOfficeNameTxt.Text = 'Печь №5'  
     })
 
 [void]$formADOperatorWindows.ShowDialog()
